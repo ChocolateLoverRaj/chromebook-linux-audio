@@ -27,9 +27,16 @@ async fn main() {
     create_dir_all(dest).await.unwrap();
     cp_r::CopyOptions::new().copy_tree("conf", dest).unwrap();
 
-    println!("Enabling systemd-sysext");
+    println!("Masking systemd-sysext.service");
     Command::new("systemctl")
-        .args(&["enable", "--now", "systemd-sysext"])
+        .args(&["mask", "systemd-sysext"])
+        .output()
+        .await
+        .unwrap();
+
+    println!("Enabling chromebook-audio.service");
+    Command::new("systemctl")
+        .args(&["enable", "chromebook-audio"])
         .output()
         .await
         .unwrap();
