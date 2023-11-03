@@ -1,0 +1,3 @@
+[submodule "chromebook-ucm-conf"]
+	path = chromebook-ucm-conf
+	url = https://github.com/WeirdTreeThing/chromebook-ucm-conf
