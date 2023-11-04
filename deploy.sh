@@ -11,4 +11,4 @@ scp chromebook-audio.service $SSH:
 ssh $SSH sudo cp chromebook-audio.service /etc/systemd/system
 ssh $SSH sudo systemctl enable chromebook-audio.service
 ssh $SSH sudo cp ./service /usr/local/bin/chromebook-audio
-ssh $SSH sudo chromebook-audio
+ssh $SSH sudo reboot # chromebook-audio
