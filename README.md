@@ -1,28 +1,28 @@
 <h1 align="center">Python script to enable audio support on Chrome devices</h1>
 
+# This is a fork
+If you want audio on a mutable Linux distro, use https://github.com/WeirdTreeThing/chromebook-linux-audio
+If this isn't working for some reason and you want audio on an immutable Linux distro, use https://github.com/ChocolateLoverRaj/chromebook-linux-audio
+
 # Instructions
-1.     git clone https://github.com/WeirdTreeThing/chromebook-linux-audio
-2.     cd chromebook-linux-audio
-3.     ./setup-audio
+Download the RPM from GitHub releases and install.
 
-# Requirements
-1. `python 3.10`
-2. `git`
-
-# Supported Devices
 See the [Linux compatibility sheet](https://docs.google.com/spreadsheets/d/1udREts28cIrCL5tnPj3WpnOPOhWk76g3--tfWbtxi6Q/edit#gid=0) for more info.
 
 # Officially Supported distros
-1. Arch Linux
-2. Fedora 38 & immutable spins (Silverblue, Kinoite, etc.)
-3. PopOS
-4. Debian 12[^1]
-5. Ubuntu (23.10 preferred but 22.04 LTS should also work)
-6. Linux Mint 
-7. OpenSUSE
-8. Void Linux
+Fedora 38 & immutable spins (Silverblue, Kinoite, etc.)
 
-[^1]: Debian requires a custom kernel which you can get [here](https://tree123.org/chrultrabook/debian-kernel/linux-image-6.5.4-chrultrabook_6.5.4-1_amd64.deb).
+# Developing
+## Setup the environment
+- Install [Rust](https://www.rust-lang.org/tools/install)
+- Install [`virt-manager`](https://virt-manager.org/)
+- Create a Fedora Kinoite (or other immutable spin) VM
+- Enable SSH in the VM and setup SSH so you don't need to type in a password
+- Disable password for the VM user
+- Edit `deploy.sh` to use your VM's username and IP address
 
-# Other Distros
-Other distros will likely work but will require you to manually install packages.
+## Testing changes in the VM
+Run `deploy.sh`
+
+## Testing changes on a real device
+The easiest way is to run `build.sh`, which will generate a `.rpm` file in `target/generate-rpm`. Then just install that RPM.

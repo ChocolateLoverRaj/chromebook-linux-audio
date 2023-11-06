@@ -2,7 +2,13 @@
   "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
   "version": "0.2",
   "words": [
+    "alsa",
     "oneshot",
-    "sysext"
+    "sysext",
+    "sof-bxtda7219ma",
+    "sof-glkrt5682ma",
+    "sof-glkda7219ma",
+    "sof-cmlda7219ma",
+    "sof-tplg"
   ]
 }

@@ -1,6 +1,6 @@
 [Unit]
-Description=Symlinks config files for the current Chromebook on boot.
-Before=systemd-sysext.service
+Description=Enables audio systemd-sysext overlays for the current Chromebook
+# Before=systemd-sysext.service
 
 [Service]
 Type=simple

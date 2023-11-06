@@ -1,10 +1,16 @@
-use fuser::{spawn_mount2, FileAttr, FileType, Filesystem, MountOption};
+use chromebook_audio::SOF_BOARD_GENERATIONS;
+use fuser::{spawn_mount2, BackgroundSession, FileAttr, FileType, Filesystem, MountOption};
 use libc::ENOENT;
 use std::{
     fs::{self, File},
     process::Command,
     time::{Duration, UNIX_EPOCH},
 };
+use tokio::join;
+
+use crate::{board_generations::get_board_generations, get_board_name::get_board_name};
+mod board_generations;
+mod get_board_name;
 
 struct MyFS {
     file_contents: String,
@@ -70,24 +76,57 @@ impl MyFS {
     }
 }
 
-fn main() {
-    let path = "/var/lib/extensions/chromebook-linux-audio/usr/lib/extension-release.d/extension-release.chromebook-linux-audio";
-    let file_contents = fs::read_to_string("/var/lib/extensions/chromebook-linux-audio/usr/lib/extension-release.d/.extension-release.chromebook-linux-audio").unwrap();
-    let fs = MyFS { file_contents };
-    File::create(path).unwrap();
-    let handle = spawn_mount2(
-        fs,
-        path,
-        &[
-            MountOption::RO,
-            MountOption::AllowOther,
-            MountOption::AutoUnmount,
-        ],
-    )
-    .unwrap();
-    Command::new("systemctl")
-        .args(&["restart", "systemd-sysext"])
-        .output()
+#[tokio::main]
+async fn main() {
+    let (board_name, board_generations) = join!(get_board_name(), get_board_generations());
+    let board_name = board_name.unwrap();
+    // let board_name = String::from("jinlon");
+    let board_generation = match board_generations.get(&board_name) {
+        Some(v) => Some(v as &str),
+        None => None,
+    };
+
+    fn enable_overlay(overlay: &str) -> BackgroundSession {
+        println!("Enabling overlay: {overlay}");
+        let path = &format!(
+            "/etc/extensions/{overlay}/usr/lib/extension-release.d/extension-release.{overlay}"
+        )[..];
+        let file_contents = fs::read_to_string(format!(
+            "/etc/extensions/{overlay}/usr/lib/extension-release.d/.extension-release.{overlay}"
+        ))
         .unwrap();
-    handle.join();
+        let fs = MyFS { file_contents };
+        File::create(path).unwrap();
+        return spawn_mount2(
+            fs,
+            path,
+            &[
+                MountOption::RO,
+                MountOption::AllowOther,
+                MountOption::AutoUnmount,
+            ],
+        )
+        .unwrap();
+    }
+
+    match board_generation {
+        Some(board_generation) => match SOF_BOARD_GENERATIONS.contains(&board_generation) {
+            true => {
+                let h1 = enable_overlay("chromebook-sof-common");
+                let h2 = enable_overlay(&format!("chromebook-sof-{board_generation}").as_str());
+                Command::new("systemctl")
+                    .args(&["restart", "systemd-sysext"])
+                    .output()
+                    .unwrap();
+                h1.join();
+                h2.join();
+            }
+            false => {
+                println!("Chromebook doesn't use SOF. Non-SOF is not implemented yet")
+            }
+        },
+        None => {
+            println!("Not a chromebook. Not overlaying Chromebook audio.")
+        }
+    }
 }
