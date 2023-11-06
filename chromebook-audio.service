@@ -1,11 +1,11 @@
 [Unit]
 Description=Symlinks config files for the current Chromebook on boot.
+Before=systemd-sysext.service
 
 [Service]
-Type=oneshot
+Type=simple
 RemainAfterExit=yes
 ExecStart=chromebook-audio
-ExecStartPost=systemd-sysext merge
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

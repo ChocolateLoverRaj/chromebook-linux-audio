@@ -7,5 +7,7 @@ edition = "2021"
 async-fs = "2.0.0"
 async-process = "2.0.0"
 cp_r = "0.5.1"
+fuser = "0.14.0"
+libc = "0.2.150"
 serde_json = "1.0.108"
 tokio = { version = "1.33.0", features = ["full"] }

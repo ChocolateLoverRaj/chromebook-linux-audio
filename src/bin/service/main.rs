@@ -1,88 +1,93 @@
-mod board_generations;
-mod get_board_name;
-use async_fs::{create_dir_all, remove_dir_all};
-use board_generations::get_board_generations;
-use chromebook_audio::get_extension_dir;
-use get_board_name::get_board_name;
-use std::{os::unix::fs::symlink, vec};
-use tokio::join;
+use fuser::{spawn_mount2, FileAttr, FileType, Filesystem, MountOption};
+use libc::ENOENT;
+use std::{
+    fs::{self, File},
+    process::Command,
+    time::{Duration, UNIX_EPOCH},
+};
 
-async fn setup_sof(board_generation: &str) {
-    // TODO: # Force sof driver
-    // print_status("Installing modprobe config")
-    // cpfile("conf/sof/snd-sof.conf", "/etc/modprobe.d/snd-sof.conf")
-    let extension_dir = get_extension_dir();
-    create_dir_all(format!("{extension_dir}/usr/share/alsa/ucm2/conf.d"))
-        .await
-        .unwrap();
-    let dirs = match board_generation {
-        "glk" => vec!["sof-glkda7219ma", "sof-cs42l42", "sof-glkrt5682ma"],
-        "apl" => vec!["sof-bxtda7219ma"],
-        "cml" => vec![
-            "sof-rt5682",
-            "sof-cmlda7219ma",
-            "sof-cml_rt1011_",
-            "sof-cml_max9839",
-        ],
-        "tgl" => vec!["sof-rt5682"],
-        "jsl" => vec!["sof-rt5682", "sof-da7219max98", "sof-cs42l42"],
-        // FIXME: jsl may need to copy a file to /usr/lib/firmware/intel/sof-tplg
-        "adl" => vec!["sof-rt5682", "sof-nau8825", "sof-ssp_amp"],
-        _ => panic!(
-            "SOF setup not implemented for board generation: {:?}",
-            board_generation
-        ),
-    };
-
-    for dir in dirs {
-        symlink(
-            &format!("{extension_dir}/usr/lib/chromebook-audio/chromebook-ucm-conf/{board_generation}/{dir}"),
-            &format!("{extension_dir}/usr/share/alsa/ucm2/conf.d/{dir}"),
-        )
-        .unwrap();
-    }
-
-    // Common dmic split ucm
-    symlink(
-        &format!("{extension_dir}/usr/lib/chromebook-audio/chromebook-ucm-conf/dmic-common"),
-        &format!("{extension_dir}/usr/share/alsa/ucm2/conf.d/dmic-common"),
-    )
-    .unwrap();
-
-    // Common hdmi split ucm
-    symlink(
-        &format!("{extension_dir}/usr/lib/chromebook-audio/chromebook-ucm-conf/hdmi-common"),
-        &format!("{extension_dir}/usr/share/alsa/ucm2/conf.d/hdmi-common"),
-    )
-    .unwrap();
+struct MyFS {
+    file_contents: String,
 }
-
-#[tokio::main]
-async fn main() {
-    let (board_name, board_generations) = join!(get_board_name(), get_board_generations());
-    let board_name = board_name.unwrap();
-    // let board_name = String::from("fleex");
-    let board_generation = match board_generations.get(&board_name) {
-        Some(v) => Some(v as &str),
-        None => None,
-    };
-    let extension_dir = get_extension_dir();
-    let _ = remove_dir_all(format!("{extension_dir}/usr/share")).await;
-    match board_generation {
-        Some(board_generation) => match board_generation {
-            "bdw" | "byt" | "bsw" => {
-                println!(
-                    "bsw audio not implemented yet. Contact dev if you need it for some reason."
-                )
-            }
-            "skl" | "kbl" => println!("AVS not implemented yet"),
-            "apl" | "glk" | "cml" | "jsl" | "tgl" | "adl" => setup_sof(board_generation).await,
-            _ => {
-                println!("Do not know how to setup audio for board generation '{board_generation}'")
-            }
-        },
-        None => {
-            println!("Not overlaying any audio modifications because the device {board_name} is not known to be a Chromebook.");
+impl Filesystem for MyFS {
+    fn read(
+        &mut self,
+        _req: &fuser::Request<'_>,
+        ino: u64,
+        _fh: u64,
+        offset: i64,
+        size: u32,
+        _flags: i32,
+        _lock_owner: Option<u64>,
+        reply: fuser::ReplyData,
+    ) {
+        if ino == 1 {
+            let config = &self.file_contents[..];
+            let end = ((offset + (size as i64)) as usize).min(config.len());
+            reply.data(&config.as_bytes()[offset as usize..end]);
+        } else {
+            reply.error(ENOENT);
         }
     }
+
+    fn getattr(&mut self, _req: &fuser::Request, ino: u64, reply: fuser::ReplyAttr) {
+        match ino {
+            1 => reply.attr(&Duration::from_nanos(0), &self.get_file_attr()),
+            _ => reply.error(ENOENT),
+        }
+    }
+
+    fn lookup(
+        &mut self,
+        _req: &fuser::Request<'_>,
+        _parent: u64,
+        _name: &std::ffi::OsStr,
+        reply: fuser::ReplyEntry,
+    ) {
+        reply.entry(&Duration::from_nanos(0), &self.get_file_attr(), 0);
+    }
+}
+
+impl MyFS {
+    fn get_file_attr(&self) -> FileAttr {
+        FileAttr {
+            ino: 1,
+            size: self.file_contents.len() as u64,
+            blocks: 1,
+            atime: UNIX_EPOCH, // 1970-01-01 00:00:00
+            mtime: UNIX_EPOCH,
+            ctime: UNIX_EPOCH,
+            crtime: UNIX_EPOCH,
+            kind: FileType::RegularFile,
+            perm: 0o644,
+            nlink: 1,
+            uid: 501,
+            gid: 20,
+            rdev: 0,
+            flags: 0,
+            blksize: 512,
+        }
+    }
+}
+
+fn main() {
+    let path = "/var/lib/extensions/chromebook-linux-audio/usr/lib/extension-release.d/extension-release.chromebook-linux-audio";
+    let file_contents = fs::read_to_string("/var/lib/extensions/chromebook-linux-audio/usr/lib/extension-release.d/.extension-release.chromebook-linux-audio").unwrap();
+    let fs = MyFS { file_contents };
+    File::create(path).unwrap();
+    let handle = spawn_mount2(
+        fs,
+        path,
+        &[
+            MountOption::RO,
+            MountOption::AllowOther,
+            MountOption::AutoUnmount,
+        ],
+    )
+    .unwrap();
+    Command::new("systemctl")
+        .args(&["restart", "systemd-sysext"])
+        .output()
+        .unwrap();
+    handle.join();
 }
