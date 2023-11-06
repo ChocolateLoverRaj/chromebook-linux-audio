@@ -13,9 +13,7 @@ use crate::{board_generations::get_board_generations, get_board_name::get_board_
 mod board_generations;
 mod get_board_name;
 
-struct MyFS {
-    file_contents: String,
-}
+struct MyFS {}
 impl Filesystem for MyFS {
     fn read(
         &mut self,
@@ -29,9 +27,9 @@ impl Filesystem for MyFS {
         reply: fuser::ReplyData,
     ) {
         if ino == 1 {
-            let config = &self.file_contents[..];
-            let end = ((offset + (size as i64)) as usize).min(config.len());
-            reply.data(&config.as_bytes()[offset as usize..end]);
+            let contents = fs::read("/etc/os-release").unwrap();
+            let end = ((offset + (size as i64)) as usize).min(contents.len());
+            reply.data(&contents[offset as usize..end]);
         } else {
             reply.error(ENOENT);
         }
@@ -39,40 +37,34 @@ impl Filesystem for MyFS {
 
     fn getattr(&mut self, _req: &fuser::Request, ino: u64, reply: fuser::ReplyAttr) {
         match ino {
-            1 => reply.attr(&Duration::from_nanos(0), &self.get_file_attr()),
+            1 => match fs::metadata("/etc/os-release") {
+                Ok(stats) => {
+                    reply.attr(
+                        &Duration::from_nanos(0),
+                        &FileAttr {
+                            ino: 1,
+                            size: stats.len(),
+                            blocks: 1,
+                            atime: UNIX_EPOCH, // 1970-01-01 00:00:00
+                            mtime: UNIX_EPOCH,
+                            ctime: UNIX_EPOCH,
+                            crtime: UNIX_EPOCH,
+                            kind: FileType::RegularFile,
+                            perm: 0o644,
+                            nlink: 1,
+                            uid: 501,
+                            gid: 20,
+                            rdev: 0,
+                            flags: 0,
+                            blksize: 0,
+                        },
+                    )
+                }
+                Err(_e) => {
+                    reply.error(1);
+                }
+            },
             _ => reply.error(ENOENT),
-        }
-    }
-
-    fn lookup(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        _parent: u64,
-        _name: &std::ffi::OsStr,
-        reply: fuser::ReplyEntry,
-    ) {
-        reply.entry(&Duration::from_nanos(0), &self.get_file_attr(), 0);
-    }
-}
-
-impl MyFS {
-    fn get_file_attr(&self) -> FileAttr {
-        FileAttr {
-            ino: 1,
-            size: self.file_contents.len() as u64,
-            blocks: 1,
-            atime: UNIX_EPOCH, // 1970-01-01 00:00:00
-            mtime: UNIX_EPOCH,
-            ctime: UNIX_EPOCH,
-            crtime: UNIX_EPOCH,
-            kind: FileType::RegularFile,
-            perm: 0o644,
-            nlink: 1,
-            uid: 501,
-            gid: 20,
-            rdev: 0,
-            flags: 0,
-            blksize: 512,
         }
     }
 }
@@ -93,11 +85,7 @@ async fn main() {
             let path = &format!(
                 "/etc/extensions/{overlay}/usr/lib/extension-release.d/extension-release.{overlay}"
             )[..];
-            let file_contents = fs::read_to_string(format!(
-                "/etc/extensions/{overlay}/usr/lib/extension-release.d/.extension-release.{overlay}"
-            ))
-            .unwrap();
-            let fs = MyFS { file_contents };
+            let fs = MyFS {};
             File::create(path).unwrap();
             return mount2(
                 fs,

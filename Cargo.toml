@@ -1,7 +1,7 @@
 [package]
 name = "chromebook-audio"
 description = "Enables audio systemd-sysext overlays for the current Chromebook"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 license = "MIT"
 
@@ -17,11 +17,9 @@ tokio = { version = "1.33.0", features = ["full"] }
 assets = [
   { source = "conf/boards.json", dest = "/usr/share/chromebook-audio/boards.json" },
   { source = "target/release/service", dest = "/usr/bin/chromebook-audio", mode = "755" },
-  { source = "target/release/post_install", dest = "/usr/bin/chromebook-audio-post-install", mode = "755" },
   { source = "chromebook-audio.service", dest = "/usr/lib/systemd/system/chromebook-audio.service" },
   { source = "extensions/**/*", dest = "/etc/extensions/" },
 ]
-post_install_script = "/usr/bin/chromebook-audio-post-install"
 
 [package.metadata.generate-rpm.requires]
 fuse = "*"

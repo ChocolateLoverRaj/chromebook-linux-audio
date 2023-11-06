@@ -14,12 +14,6 @@ async fn create_extension(name: &str) {
     )
     .await
     .unwrap();
-    async_fs::write(
-        format!("{}/.extension-release.{}", extension_release_d_dir, name),
-        "",
-    )
-    .await
-    .unwrap();
 }
 
 #[tokio::main]
