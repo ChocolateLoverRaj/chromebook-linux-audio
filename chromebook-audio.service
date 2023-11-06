@@ -1,6 +1,5 @@
 [Unit]
 Description=Enables audio systemd-sysext overlays for the current Chromebook
-# Before=systemd-sysext.service
 
 [Service]
 Type=simple

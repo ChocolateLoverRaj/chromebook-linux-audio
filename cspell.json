@@ -3,12 +3,15 @@
   "version": "0.2",
   "words": [
     "alsa",
+    "ENOENT",
+    "fuser",
+    "libc",
     "oneshot",
-    "sysext",
     "sof-bxtda7219ma",
-    "sof-glkrt5682ma",
-    "sof-glkda7219ma",
     "sof-cmlda7219ma",
-    "sof-tplg"
+    "sof-glkda7219ma",
+    "sof-glkrt5682ma",
+    "sof-tplg",
+    "sysext"
   ]
 }
