@@ -1,15 +1,17 @@
 [package]
 name = "chromebook-audio"
 description = "Enables audio systemd-sysext overlays for the current Chromebook"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 license = "MIT"
 
 [dependencies]
 async-fs = "2.0.0"
 cp_r = "0.5.1"
+ctrlc = "3.4.1"
 fuser = "0.14.0"
 libc = "0.2.150"
+parking = "2.2.0"
 serde_json = "1.0.108"
 tokio = { version = "1.33.0", features = ["full"] }
 

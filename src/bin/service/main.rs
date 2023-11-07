@@ -1,10 +1,10 @@
 use chromebook_audio::SOF_BOARD_GENERATIONS;
-use fuser::{mount2, FileAttr, FileType, Filesystem, MountOption};
+use fuser::{spawn_mount2, BackgroundSession, FileAttr, FileType, Filesystem, MountOption};
 use libc::ENOENT;
+use parking::Parker;
 use std::{
-    fs::{self, File},
+    fs::{self},
     process::Command,
-    thread::JoinHandle,
     time::{Duration, UNIX_EPOCH},
 };
 use tokio::join;
@@ -79,38 +79,42 @@ async fn main() {
         None => None,
     };
 
-    fn enable_overlay(overlay: String) -> JoinHandle<()> {
-        return std::thread::spawn(move || {
-            println!("Enabling overlay: {overlay}");
-            let path = &format!(
-                "/etc/extensions/{overlay}/usr/lib/extension-release.d/extension-release.{overlay}"
-            )[..];
-            let fs = MyFS {};
-            File::create(path).unwrap();
-            return mount2(
-                fs,
-                path,
-                &[
-                    MountOption::RO,
-                    MountOption::AllowOther,
-                    MountOption::AutoUnmount,
-                ],
-            )
-            .unwrap();
-        });
+    fn enable_overlay(overlay: String) -> BackgroundSession {
+        println!("Enabling overlay: {overlay}");
+        let path = &format!(
+            "/etc/extensions/{overlay}/usr/lib/extension-release.d/extension-release.{overlay}"
+        )[..];
+        let fs = MyFS {};
+        return spawn_mount2(
+            fs,
+            path,
+            &[
+                MountOption::RO,
+                MountOption::AllowOther,
+                MountOption::AutoUnmount,
+            ],
+        )
+        .unwrap();
     }
 
     match board_generation {
         Some(board_generation) => match SOF_BOARD_GENERATIONS.contains(&board_generation) {
             true => {
-                let h1 = enable_overlay(String::from("chromebook-sof-common"));
-                let h2 = enable_overlay(format!("chromebook-sof-{board_generation}"));
+                let common_fuse = enable_overlay(String::from("chromebook-sof-common"));
+                let board_fuse = enable_overlay(format!("chromebook-sof-{board_generation}"));
                 Command::new("systemctl")
                     .args(&["restart", "systemd-sysext"])
                     .output()
                     .unwrap();
-                h1.join().unwrap();
-                h2.join().unwrap();
+                let parker = Parker::new();
+                let unparker = parker.unparker();
+                ctrlc::set_handler(move || {
+                    unparker.unpark();
+                })
+                .unwrap();
+                parker.park();
+                drop(common_fuse);
+                drop(board_fuse);
             }
             false => {
                 println!("Chromebook doesn't use SOF. Non-SOF is not implemented yet")

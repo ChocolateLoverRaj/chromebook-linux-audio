@@ -12,6 +12,7 @@
     "sof-glkda7219ma",
     "sof-glkrt5682ma",
     "sof-tplg",
-    "sysext"
+    "sysext",
+    "unparker"
   ]
 }
