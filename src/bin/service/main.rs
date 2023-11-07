@@ -1,73 +1,14 @@
 use chromebook_audio::SOF_BOARD_GENERATIONS;
-use fuser::{spawn_mount2, BackgroundSession, FileAttr, FileType, Filesystem, MountOption};
-use libc::ENOENT;
+use fuser::{spawn_mount2, BackgroundSession, MountOption};
 use parking::Parker;
-use std::{
-    fs::{self},
-    process::Command,
-    time::{Duration, UNIX_EPOCH},
-};
+use std::process::Command;
 use tokio::join;
 
 use crate::{board_generations::get_board_generations, get_board_name::get_board_name};
 mod board_generations;
 mod get_board_name;
-
-struct MyFS {}
-impl Filesystem for MyFS {
-    fn read(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        _fh: u64,
-        offset: i64,
-        size: u32,
-        _flags: i32,
-        _lock_owner: Option<u64>,
-        reply: fuser::ReplyData,
-    ) {
-        if ino == 1 {
-            let contents = fs::read("/etc/os-release").unwrap();
-            let end = ((offset + (size as i64)) as usize).min(contents.len());
-            reply.data(&contents[offset as usize..end]);
-        } else {
-            reply.error(ENOENT);
-        }
-    }
-
-    fn getattr(&mut self, _req: &fuser::Request, ino: u64, reply: fuser::ReplyAttr) {
-        match ino {
-            1 => match fs::metadata("/etc/os-release") {
-                Ok(stats) => {
-                    reply.attr(
-                        &Duration::from_nanos(0),
-                        &FileAttr {
-                            ino: 1,
-                            size: stats.len(),
-                            blocks: 1,
-                            atime: UNIX_EPOCH, // 1970-01-01 00:00:00
-                            mtime: UNIX_EPOCH,
-                            ctime: UNIX_EPOCH,
-                            crtime: UNIX_EPOCH,
-                            kind: FileType::RegularFile,
-                            perm: 0o644,
-                            nlink: 1,
-                            uid: 501,
-                            gid: 20,
-                            rdev: 0,
-                            flags: 0,
-                            blksize: 0,
-                        },
-                    )
-                }
-                Err(_e) => {
-                    reply.error(1);
-                }
-            },
-            _ => reply.error(ENOENT),
-        }
-    }
-}
+mod virtual_file;
+use virtual_file::VirtualFile;
 
 #[tokio::main]
 async fn main() {
@@ -84,7 +25,9 @@ async fn main() {
         let path = &format!(
             "/etc/extensions/{overlay}/usr/lib/extension-release.d/extension-release.{overlay}"
         )[..];
-        let fs = MyFS {};
+        let fs = VirtualFile {
+            source_file: String::from("/etc/os-release"),
+        };
         return spawn_mount2(
             fs,
             path,
@@ -102,6 +45,17 @@ async fn main() {
             true => {
                 let common_fuse = enable_overlay(String::from("chromebook-sof-common"));
                 let board_fuse = enable_overlay(format!("chromebook-sof-{board_generation}"));
+                let modprobe_fuse = spawn_mount2(
+                    VirtualFile {
+                        source_file: String::from("/usr/share/chromebook-audio/sof/snd-sof.conf"),
+                    },
+                    "/etc/modprobe.d/snd-sof.conf",
+                    &[
+                        MountOption::RO,
+                        MountOption::AllowOther,
+                        MountOption::AutoUnmount,
+                    ],
+                );
                 Command::new("systemctl")
                     .args(&["restart", "systemd-sysext"])
                     .output()
@@ -115,6 +69,7 @@ async fn main() {
                 parker.park();
                 drop(common_fuse);
                 drop(board_fuse);
+                drop(modprobe_fuse);
             }
             false => {
                 println!("Chromebook doesn't use SOF. Non-SOF is not implemented yet")

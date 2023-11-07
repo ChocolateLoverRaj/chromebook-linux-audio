@@ -1,7 +1,7 @@
 [package]
 name = "chromebook-audio"
 description = "Enables audio systemd-sysext overlays for the current Chromebook"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 license = "MIT"
 
@@ -18,10 +18,12 @@ tokio = { version = "1.33.0", features = ["full"] }
 [package.metadata.generate-rpm]
 assets = [
   { source = "conf/boards.json", dest = "/usr/share/chromebook-audio/boards.json" },
+  { source = "conf/sof/snd-sof.conf", dest = "/usr/share/chromebook-audio/sof/snd-sof.conf" },
   { source = "target/release/service", dest = "/usr/bin/chromebook-audio", mode = "755" },
   { source = "chromebook-audio.service", dest = "/usr/lib/systemd/system/chromebook-audio.service" },
   { source = "extensions/**/*", dest = "/etc/extensions/" },
   { source = "conf/common/51-increase-headroom.lua", dest = "/etc/wireplumber/main.lua.d/51-increase-headroom.lua" },
+  { source = "etc/**/*", dest = "/etc/" },
 ]
 url = "https://github.com/ChocolateLoverRaj/chromebook-linux-audio/tree/eupnea"
 
