@@ -20,6 +20,7 @@ assets = [
   { source = "chromebook-audio.service", dest = "/usr/lib/systemd/system/chromebook-audio.service" },
   { source = "extensions/**/*", dest = "/etc/extensions/" },
 ]
+url = "https://github.com/ChocolateLoverRaj/chromebook-linux-audio/tree/eupnea"
 
 [package.metadata.generate-rpm.requires]
 fuse = "*"
