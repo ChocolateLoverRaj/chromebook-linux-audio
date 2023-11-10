@@ -13,6 +13,9 @@
     "sof-glkrt5682ma",
     "sof-tplg",
     "sysext",
-    "unparker"
+    "tplg",
+    "unpark",
+    "unparker",
+    "wireplumber"
   ]
 }
