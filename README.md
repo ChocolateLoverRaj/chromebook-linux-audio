@@ -1,3 +1,6 @@
+# This is a fork
+This is meant to be a temporary solution to have working audio on Redrix until the latest WTT audio script and Linux packages setup audio successfully on redrix
+
 <h1 align="center">Python script to enable audio support on Chrome devices</h1>
 
 # Instructions

@@ -40,11 +40,11 @@ def setup_overlay():
 
 def clone_ucm():
     try:
-        branch = ""
+        branch = "-b redrix-temp"
         if not args.branch_name[0] == "":
             branch = f"-b {args.branch_name[0]}"
         bash("rm -rf /tmp/chromebook-ucm-conf")
-        bash(f"git clone https://github.com/WeirdTreeThing/chromebook-ucm-conf {branch} /tmp/chromebook-ucm-conf")
+        bash(f"git clone https://github.com/ChocolateLoverRaj/chromebook-ucm-conf {branch} /tmp/chromebook-ucm-conf")
     except:
         print_error("Error: Failed to clone UCM repo")
         exit(1)
